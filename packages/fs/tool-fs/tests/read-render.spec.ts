@@ -90,6 +90,19 @@ describe('buildWindow', () => {
       expect(result.totalLines).toBe(3)
       expect(result.truncatedByBytes).toBe(true)
     })
+
+    it('keeps the first selected line when that line alone exceeds maxBytes', async () => {
+      const result = await buildWindow(whole('aaaa\nbbbb'), { offset: 1, limit: 10, maxLineLength: 2000, maxBytes: 3 }, 'f')
+      expect(result.lines).toEqual([{ number: 1, text: 'aaaa' }])
+      expect(result.totalLines).toBe(2)
+      expect(result.truncatedByBytes).toBe(true)
+    })
+
+    it('does not report a byte cap when the line that exceeds maxBytes is the last one', async () => {
+      const result = await buildWindow(whole('aaaa'), { offset: 1, limit: 10, maxLineLength: 2000, maxBytes: 3 }, 'f')
+      expect(result.lines).toEqual([{ number: 1, text: 'aaaa' }])
+      expect(result.truncatedByBytes).toBe(false)
+    })
   })
 
   describe('chunked input (streamed read shape)', () => {

@@ -797,6 +797,16 @@ describe('read caps are plugin config', () => {
     expect(text(result)).not.toContain('cccc')
   })
 
+  it('keeps the first line when readMaxBytes cannot fit it, so the footer still advances', async () => {
+    const { ctx, fs } = await setupWith({ readMaxBytes: 3 })
+    fs.files.set('key:a.txt', 'aaaa\nbbbb')
+    const result = await call(ctx, 'read', { file_path: 'a.txt' })
+    expect(result.isError).toBe(false)
+    if (result.isError) throw new Error('expected read success')
+    expect(result.value).toMatchObject({ totalLines: 2, lines: [{ number: 1, text: 'aaaa' }] })
+    expect(text(result)).toContain('(Output capped. Showing lines 1-1. Use offset=2 to continue.)')
+  })
+
   it('a configured readStreamMinSize routes smaller files to the streaming path', async () => {
     const { ctx, fs } = await setupWith({ readStreamMinSize: 5 })
     fs.files.set('key:a.txt', 'alpha\nbeta')

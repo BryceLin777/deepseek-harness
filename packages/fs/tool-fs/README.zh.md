@@ -64,7 +64,7 @@ kind: "package-reference"
 | `edit` | `true` | 注册 `edit` 及其指导文本 |
 | `readLimit` | `2000` | 一次 `read` 调用返回的默认和最大行数 |
 | `readMaxLineLength` | `2000` | 每行截断前保留的字符数 |
-| `readMaxBytes` | `51200` | 一次 `read` 调用所选行的字节上限；溢出时以「已达上限」footer 结束窗口 |
+| `readMaxBytes` | `51200` | 一次 `read` 调用所选行的字节上限；溢出时以「已达上限」footer 结束窗口，且始终返回选中的第一行 |
 | `readStreamMinSize` | `10485760` | 大于等于该大小或大小未知的文件采用流式读取，而不是整体加载到内存 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-tool-fs)是每个受支持字段及其 JSDoc 的穷尽式真源。
@@ -188,7 +188,7 @@ Read a file before editing it (the default fs-observation-policy requires it), u
 
 #### 模型看到的内容
 
-成功读取结果精确为 `<path><resolvedPath></path>`、换行、`<type>file</type>`、换行、`<content>`、形如 `<lineNumber>: <text>` 的编号行、一个空行、一条 footer 和 `</content>`。footer 精确为 `(Output capped. Showing lines <start>-<end>. Use offset=<next> to continue.)`、`(Showing lines <start>-<end> of <total>. Use offset=<next> to continue.)` 或 `(End of file - total <total> lines)`。长行结尾精确为 `... (line truncated to <max> chars)`。读取缺失目标仍返回 `FS_NOT_FOUND`，但会为调用会话记录确认缺失；外部删除的文件被重新读取后，重试的 `write` 可以通过提供方的不替换防护安全地重新创建该文件。
+成功读取结果精确为 `<path><resolvedPath></path>`、换行、`<type>file</type>`、换行、`<content>`、形如 `<lineNumber>: <text>` 的编号行、一个空行、一条 footer 和 `</content>`。footer 精确为 `(Output capped. Showing lines <start>-<end>. Use offset=<next> to continue.)`、`(Showing lines <start>-<end> of <total>. Use offset=<next> to continue.)` 或 `(End of file - total <total> lines)`。选中至少一行的窗口始终返回至少一行，因此单行自身超出 `readMaxBytes` 时仍会返回该行，且「已达上限」footer 指向下一行。长行结尾精确为 `... (line truncated to <max> chars)`。读取缺失目标仍返回 `FS_NOT_FOUND`，但会为调用会话记录确认缺失；外部删除的文件被重新读取后，重试的 `write` 可以通过提供方的不替换防护安全地重新创建该文件。
 
 #### Token 影响
 

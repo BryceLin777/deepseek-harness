@@ -21,7 +21,11 @@ export interface ReadWindow {
   limit: number
   /** Maximum characters returned for a single line; overflow is truncated with a suffix. */
   maxLineLength: number
-  /** Maximum bytes of selected output; overflow stops the scan and marks `truncatedByBytes`. */
+  /**
+   * Maximum bytes of selected output; overflow stops the scan and marks `truncatedByBytes`.
+   * The first selected line is always kept, so a single line can exceed this cap — it stays
+   * bounded by `maxLineLength` plus the truncation suffix.
+   */
   maxBytes: number
 }
 
@@ -81,8 +85,15 @@ function consumeLine(acc: WindowAccumulator, rawLine: string, request: ReadWindo
   const text = truncateLine(rawLine, request.maxLineLength)
   const bytes = lineByteSize(text, acc.lines.length)
   if (acc.outputBytes + bytes > request.maxBytes) {
-    acc.truncatedByBytes = true
-    return
+    // A line is the smallest selectable unit, so an empty window could not report
+    // the line it stopped at: its footer would name a reversed range and send the
+    // caller back to the same offset forever. Keep this one line (still bounded by
+    // `maxLineLength` plus the truncation suffix) and let a later line, if any,
+    // report the byte cap.
+    if (acc.lines.length > 0) {
+      acc.truncatedByBytes = true
+      return
+    }
   }
   acc.outputBytes += bytes
   acc.lines.push({ number: acc.totalLines, text })
@@ -102,7 +113,9 @@ function finish(acc: WindowAccumulator, request: ReadWindow, displayPath: string
 /**
  * Build one window from streamed or whole-file chunks, enforcing line and byte caps while still
  * scanning to an exact total line count, and throwing `FS_NOT_FOUND` when the requested offset is
- * past EOF.
+ * past EOF. A window that selects at least one line always returns at least one: an over-long
+ * first line is kept whole, so the capped footer names a returned line and a continuation offset
+ * that advances.
  * @param chunks - decoded text chunks in file order; chunk boundaries carry no meaning.
  * @param request - the resolved window; the caller has already applied its defaults and caps.
  * @param displayPath - the caller-facing path used in the offset-out-of-range error.

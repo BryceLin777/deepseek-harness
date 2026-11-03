@@ -64,7 +64,7 @@ All keys are optional. The `read`, `readImage`, `write`, and `edit` switches def
 | `edit` | `true` | Register `edit` and its guidance |
 | `readLimit` | `2000` | Default and maximum lines returned by one `read` call |
 | `readMaxLineLength` | `2000` | Characters kept per line before truncation |
-| `readMaxBytes` | `51200` | Byte cap on one `read` call's selected lines; overflow ends the window with a capped footer |
+| `readMaxBytes` | `51200` | Byte cap on one `read` call's selected lines; overflow ends the window with a capped footer, and the first selected line is always returned |
 | `readStreamMinSize` | `10485760` | Files at or above this size (or of unknown size) stream instead of loading whole into memory |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-tool-fs) is the exhaustive source for every accepted field and its JSDoc.
@@ -188,7 +188,7 @@ Prefix-stable while the visible tool definitions and order are unchanged. Regist
 
 #### What the model sees
 
-A successful read is exactly `<path><resolvedPath></path>`, newline, `<type>file</type>`, newline, `<content>`, numbered lines as `<lineNumber>: <text>`, a blank line, one footer, and `</content>`. The footer is exactly `(Output capped. Showing lines <start>-<end>. Use offset=<next> to continue.)`, `(Showing lines <start>-<end> of <total>. Use offset=<next> to continue.)`, or `(End of file - total <total> lines)`. A long line ends exactly `... (line truncated to <max> chars)`. A missing read still returns `FS_NOT_FOUND`, but it records confirmed absence for the calling session; after an externally deleted file is re-read, a retried `write` can safely recreate it through the provider's no-replace guard.
+A successful read is exactly `<path><resolvedPath></path>`, newline, `<type>file</type>`, newline, `<content>`, numbered lines as `<lineNumber>: <text>`, a blank line, one footer, and `</content>`. The footer is exactly `(Output capped. Showing lines <start>-<end>. Use offset=<next> to continue.)`, `(Showing lines <start>-<end> of <total>. Use offset=<next> to continue.)`, or `(End of file - total <total> lines)`. A window that selects at least one line always returns at least one, so a line that alone exceeds `readMaxBytes` is returned and the capped footer advances to the next line. A long line ends exactly `... (line truncated to <max> chars)`. A missing read still returns `FS_NOT_FOUND`, but it records confirmed absence for the calling session; after an externally deleted file is re-read, a retried `write` can safely recreate it through the provider's no-replace guard.
 
 #### Token effect
 
